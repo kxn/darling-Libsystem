@@ -113,6 +113,7 @@ extern char *_dirhelper(int, char *, size_t);
 
 #ifdef DARLING
 extern void kqueue_atfork(void);
+extern void __darling_libkernel_kqueue_atfork_child(void) __attribute__((weak_import));
 #endif
 
 // advance decls for below;
@@ -425,12 +426,15 @@ libSystem_atfork_child(void)
 	_libSC_info_fork_child();
 #endif // !TARGET_OS_DRIVERKIT
 
-	// second call client parent handlers registered with pthread_atfork()
-	_pthread_atfork_child_handlers();
-
 #ifdef DARLING
+	if (__darling_libkernel_kqueue_atfork_child != NULL)
+		__darling_libkernel_kqueue_atfork_child();
 	kqueue_atfork();
 #endif
+
+	// Application child handlers may redirect descriptors or create queues.
+	// Restore both internal backends before allowing those calls.
+	_pthread_atfork_child_handlers();
 }
 
 #ifdef DARLING
